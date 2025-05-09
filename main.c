@@ -5,8 +5,10 @@ int main() {
 
     printf("===== Seleccione su numero de cliente (0 a %d) =====\n", NUM_CLIENTES - 1);
     printf("Numero de cliente: ");
-    scanf("%d", &cuentaSeleccionada);
-
+    if (scanf("%d", &cuentaSeleccionada) != 1) {
+        printf("Error al leer el numero de cliente.\n");
+        return 1;
+    }
     if (cuentaSeleccionada < 0 || cuentaSeleccionada >= NUM_CLIENTES) {
         printf("Cliente no valido. Saliendo del programa.\n");
         return 0;
@@ -24,7 +26,10 @@ int main() {
         printf("3. Retirar dinero\n");
         printf("4. Salir\n");
         printf("Opcion: ");
-        scanf("%d", &opcion);
+        if (scanf("%d", &opcion) != 1) {
+            printf("Error al leer la opcion.\n");
+            break;
+        }
 
         switch (opcion) {
             case 1:
