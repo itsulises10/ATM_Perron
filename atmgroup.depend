@@ -1,0 +1,17 @@
+# depslib dependency file v1.0
+1747365807 source:c:\users\edwin barjas\documents\grupal\atmgroup\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"ATM.h"
+
+1747365356 c:\users\edwin barjas\documents\grupal\atmgroup\atm.h
+
+1747411397 source:c:\users\usuario\pictures\cajero\atmgroup\main.c
+	"ATM.h"
+
+1747411294 c:\users\usuario\pictures\cajero\atmgroup\atm.h
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+

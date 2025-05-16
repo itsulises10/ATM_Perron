@@ -2,201 +2,206 @@
 #define ATM_H_INCLUDED
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
-#define MAX_INTENTOS 3
-#define NUM_CLIENTES 3
+#define MAX_CLIENTES 100
 
 typedef struct {
-    int numeroCliente;
+    int numClientes;
     char nombre[50];
-    char nip[5]; // 4 digitos + '\0'
     float saldo;
+    int pin;
+    float historico;
 } Cliente;
 
-Cliente clientes[NUM_CLIENTES];
-int cuentaSeleccionada;
-
-// Validar que el NIP tenga exactamente 4 digitos numericos
-int nipValido(const char *nip) {
-    if (strlen(nip) != 4) return 0;
-    for (int i = 0; i < 4; i++) {
-        if (!isdigit(nip[i])) return 0;
-    }
-    return 1;
-}
-
-// Verifica si una cantidad es valida
-int verifica(float x) {
-    if (x < 0) {
-        printf("La cantidad no es valida. Debe ser mayor a 0.\n");
+// Verificar monto positivo
+    int verificacion(float X) {
+    if (X > 0) return 1;
+    if (X == 0) {
+        printf("ERROR: La cantidad es 0.\n");
         return 0;
     }
-    return 1;
+    printf("ERROR: Cantidad negativa. Ingresa un numero positivo.\n");
+    return 0;
 }
 
-// Mostrar el saldo actual
-void consultarSaldo() {
-    printf("Saldo de %s (Cliente #%d): $%.2f\n",
-        clientes[cuentaSeleccionada].nombre,
-        clientes[cuentaSeleccionada].numeroCliente,
-        clientes[cuentaSeleccionada].saldo);
+// Preguntar si desea otra operacion
+static int OtraOperacion(void) {
+    int opcion;
+    printf("Hay algo mas que podamos hacer por ti?\n");
+    printf("1. Si, volver al menu\n");
+    printf("2. No, salir\n");
+    scanf("%d", &opcion);
+    return (opcion == 1);
+}
+
+// Verificar PIN
+static int PIN(int pinCorrecto) {
+    int pinIngresado;
+    for (int intento = 0; intento < 3; intento++) {
+        printf("Ingresa tu PIN:\n");
+        scanf("%d", &pinIngresado);
+        if (pinIngresado == pinCorrecto) return 1;
+        printf("PIN incorrecto. Intentos restantes: %d\n", 2 - intento);
+    }
+    printf("Limite de intentos superado.\n");
+    exit(0);
+}
+
+// Limpiar pantalla
+static void LimpiarPantalla(void) {
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+// Consultar saldo
+static int ConsultarSaldo(float saldo) {
+    printf("Saldo actual: $%.2f\n", saldo);
+    return OtraOperacion();
 }
 
 // Depositar dinero
-void depositar() {
+ int Depositardinero(float *saldo) {
     float cantidad;
-    printf("Ingrese la cantidad a depositar: ");
+    printf("Monto a depositar: $");
     scanf("%f", &cantidad);
-
-    if (verifica(cantidad)) {
-        clientes[cuentaSeleccionada].saldo += cantidad;
-        printf("Deposito exitoso. Nuevo saldo: $%.2f\n", clientes[cuentaSeleccionada].saldo);
-    } else {
-        printf("No se pudo realizar el deposito.\n");
-    }
+    while (!verificacion(cantidad)) scanf("%f", &cantidad);
+    *saldo += cantidad;
+    printf("Nuevo saldo: $%.2f\n", *saldo);
+    return OtraOperacion();
 }
 
 // Retirar dinero
-void retirar() {
+static int RetirarDinero(float *saldo) {
     float cantidad;
-    printf("Ingrese la cantidad a retirar: ");
+    printf("Monto a retirar: $");
     scanf("%f", &cantidad);
-
-    if (verifica(cantidad)) {
-        if (cantidad > clientes[cuentaSeleccionada].saldo) {
-            printf("Fondos insuficientes. Saldo actual: $%.2f\n", clientes[cuentaSeleccionada].saldo);
-        } else {
-            clientes[cuentaSeleccionada].saldo -= cantidad;
-            printf("Retiro exitoso. Nuevo saldo: $%.2f\n", clientes[cuentaSeleccionada].saldo);
-        }
-    } else {
-        printf("No se pudo realizar el retiro.\n");
+    while (!verificacion(cantidad) || cantidad > *saldo) {
+        if (cantidad > *saldo) printf("No puedes retirar mas de tu saldo ($%.2f).\n", *saldo);
+        printf("Intenta de nuevo: $");
+        scanf("%f", &cantidad);
     }
+    *saldo -= cantidad;
+    printf("Retiro exitoso. Saldo: $%.2f\n", *saldo);
+    return OtraOperacion();
 }
 
-// Guardar clientes en archivo
-void guardarClientes() {
-    FILE *archivo = fopen("clientes.txt", "w");
-    if (archivo == NULL) {
-        printf("Error al guardar los datos.\n");
-        return;
+// Buscar cliente por nombre
+static int Buscar(Cliente clientes[], int numClientes, const char *nombreBuscado) {
+    for (int i = 0; i < numClientes; i++) {
+        if (strcmp(clientes[i].nombre, nombreBuscado) == 0) return i;
     }
-
-    for (int i = 0; i < NUM_CLIENTES; i++) {
-        fprintf(archivo, "%d %s %s %.2f\n",
-            clientes[i].numeroCliente,
-            clientes[i].nombre,
-            clientes[i].nip,
-            clientes[i].saldo);
-    }
-
-    fclose(archivo);
+    return -1;
 }
 
-// Cargar clientes o crearlos si no existen
-void cargarClientes() {
-    FILE *archivo = fopen("clientes.txt", "r");
-    if (archivo == NULL) {
-        printf("Archivo de clientes no encontrado. Creando datos iniciales...\n");
+// Crear nueva cuenta
+static int NuevaCuenta(Cliente clientes[], int *numClientes) {
+    if (*numClientes >= MAX_CLIENTES) {
+        printf("Limite de cuentas alcanzado.\n");
+        return 0;
+    }
+    char nombre[50];
+    int pin, confPin;
+    float deposito;
+    getchar();
+    printf("Ingresa Nombre y Apellido:\n");
+    fgets(nombre, sizeof(nombre), stdin);
+    nombre[strcspn(nombre, "\n")] = '\0';
+    do {
+        printf("Crea un NIP de 4 digitos: "); scanf("%d", &pin);
+        printf("Confirmar NIP: "); scanf("%d", &confPin);
+        if (pin != confPin) printf("NIPs no coinciden.\n");
+    } while (pin != confPin);
+    do {
+        printf("Deposito minimo $300: $"); scanf("%f", &deposito);
+    } while (deposito < 300);
+    Cliente c = {*numClientes + 1, "", deposito, pin};
+    strncpy(c.nombre, nombre, sizeof(c.nombre)-1);
+    clientes[*numClientes] = c;
+    printf("Cuenta creada. Numero: %03d\n", c.numClientes);
+    (*numClientes)++;
+    return OtraOperacion();
+}
 
-        // Crear datos iniciales si el archivo no existe
-        for (int i = 0; i < NUM_CLIENTES; i++) {
-            clientes[i].numeroCliente = i;
-
-            printf("Ingrese el nombre del cliente #%d: ", i);
-            scanf("%s", clientes[i].nombre);
-
-            // Pedir y validar el NIP
-            do {
-                printf("Cree un NIP de 4 digitos para %s: ", clientes[i].nombre);
-                scanf("%s", clientes[i].nip);
-
-                if (!nipValido(clientes[i].nip)) {
-                    printf("NIP invalido. Debe tener exactamente 4 digitos numericos.\n");
-                }
-
-            } while (!nipValido(clientes[i].nip));
-
-            clientes[i].saldo = 0.0;
+// Persistencia e historico en un solo CSV
+// Lineas con 4 campos: id,nombre,saldo,pin => clientes
+// Lineas con 3 campos: id,tipo(+/-),monto => historico
+static int CargarClientes(Cliente clientes[], int *numClientes, const char *filename) {
+    FILE *f = fopen(filename, "r");
+    if (!f) return 0;
+    int count = 0;
+    char line[128];
+    while (count < MAX_CLIENTES && fgets(line, sizeof(line), f)) {
+        int commas = 0;
+        for (char *p = line; *p; p++) if (*p == ',') commas++;
+        if (commas == 3) {
+            sscanf(line, "%d,%49[^,],%f,%d", &clientes[count].numClientes,
+                   clientes[count].nombre,
+                   &clientes[count].saldo,
+                   &clientes[count].pin);
+            count++;
         }
+    }
+    fclose(f);
+    *numClientes = count;
+    return 1;
+}
 
-        guardarClientes();
-    } else {
-        for (int i = 0; i < NUM_CLIENTES; i++) {
-            fscanf(archivo, "%d %s %s %f",
-                &clientes[i].numeroCliente,
+static int GuardarClientes(Cliente clientes[], int numClientes, const char *filename) {
+    // Leer historico prev
+    FILE *f = fopen(filename, "r");
+    char *hist[1000]; int hcount = 0;
+    char line[128];
+    if (f) {
+        while (fgets(line, sizeof(line), f)) {
+            int commas = 0;
+            for (char *p = line; *p; p++) if (*p == ',') commas++;
+            if (commas == 2) hist[hcount++] = strdup(line);
+        }
+        fclose(f);
+    }
+    // Reescribir
+    f = fopen(filename, "w");
+    if (!f) return 0;
+    for (int i = 0; i < numClientes; i++) {
+        fprintf(f, "%d,%s,%.2f,%d\n",
+                clientes[i].numClientes,
                 clientes[i].nombre,
-                clientes[i].nip,
-                &clientes[i].saldo);
-        }
-        fclose(archivo);
+                clientes[i].saldo,
+                clientes[i].pin);
     }
+    for (int i = 0; i < hcount; i++) {
+        fputs(hist[i], f);
+        free(hist[i]);
+    }
+    fclose(f);
+    return 1;
 }
 
-// Funcion para cargar el NIP desde archivo o pedir uno nuevo si esta vacio
-void cargarNIP() {
-    FILE *archivo = fopen("nip.txt", "r");
-    if (archivo == NULL) {
-        // Si el archivo no existe, lo creamos
-        archivo = fopen("nip.txt", "w");
-        if (archivo == NULL) {
-            printf("Error al crear archivo para NIP.\n");
-            return;
-        }
-        fclose(archivo);
-    }
-
-    // Cargar el NIP desde el archivo
-    archivo = fopen("nip.txt", "r");
-    char nipExistente[5];
-    fscanf(archivo, "%s", nipExistente);
-
-    if (strcmp(nipExistente, "0000") == 0 || strlen(nipExistente) == 0) {
-        // Si el NIP esta vacio o es "0000", pedimos un nuevo NIP
-        char nuevoNIP[5];
-        printf("No se encontro un NIP valido. Ingrese un nuevo NIP de 4 digitos: ");
-        scanf("%s", nuevoNIP);
-
-        // Validar que el nuevo NIP sea valido
-        while (!nipValido(nuevoNIP)) {
-            printf("NIP invalido. Debe tener exactamente 4 digitos numericos.\n");
-            printf("Ingrese un nuevo NIP de 4 digitos: ");
-            scanf("%s", nuevoNIP);
-        }
-
-        // Guardamos el nuevo NIP en el archivo
-        archivo = fopen("nip.txt", "w");
-        fprintf(archivo, "%s", nuevoNIP);
-        fclose(archivo);
-        printf("NIP registrado correctamente.\n");
-    } else {
-        // Si ya hay un NIP, lo usamos
-        printf("Por favor ingrese su NIP: ");
-        char nipIngresado[5];
-        int intentos = 0;
-        while (intentos < MAX_INTENTOS) {
-            scanf("%s", nipIngresado);
-            if (strcmp(nipIngresado, nipExistente) == 0) {
-                printf("NIP correcto.\n");
-                fclose(archivo);
-                return;
-            } else {
-                intentos++;
-                printf("NIP incorrecto. Intentos restantes: %d\n", MAX_INTENTOS - intentos);
-            }
-        }
-        printf("Demasiados intentos fallidos. Saliendo del programa.\n");
-        fclose(archivo);
-        exit(0); // Finalizar el programa si se exceden los intentos
-    }
+static void RegistrarHistorico(int numCliente, float monto, char tipo, const char *filename) {
+    FILE *f = fopen(filename, "a"); if (!f) return;
+    fprintf(f, "%d,%c,%.2f\n", numCliente, tipo, monto);
+    fclose(f);
 }
 
-// Verificar que el NIP ingresado coincida
-int verificarNIP() {
-    cargarNIP();  // Verificar si ya existe un NIP guardado o pedir uno nuevo
-    return 1; // Si llegamos aqui, el NIP fue correcto
+static void MostrarHistorico(const char *filename, int numCliente) {
+    FILE *f = fopen(filename, "r");
+    if (!f) { printf("No se puede abrir archivo.\n"); return; }
+    char line[128];
+    printf("Historico cuenta %d:\n", numCliente);
+    while (fgets(line, sizeof(line), f)) {
+        int commas = 0; for (char *p=line;*p;p++) if (*p==',') commas++;
+        if (commas==2) {
+            int id; char tipo; float monto;
+            sscanf(line, "%d,%c,%f", &id, &tipo, &monto);
+            if (id==numCliente) printf("%c %.2f\n", tipo, monto);
+        }
+    }
+    fclose(f);
 }
 
 #endif // ATM_H_INCLUDED
